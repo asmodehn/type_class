@@ -44,11 +44,31 @@ defmodule TypeClass.Property do
   accurate, but is in line with the spirit of Floats.
   """
   @spec equal?(any(), any()) :: boolean()
+  def equal?(left, right) when is_function(left) do
+    left.("foo") == right.("foo")
+  end
+
+  def equal?(left, right) when is_float(left) do
+    Float.round(left, 5) == Float.round(right, 5)
+  end
+
+  def equal?(left, right) when is_list(left) do
+    length(left) == length(right) and
+      Stream.zip(left, right) |> Enum.reduce(true, fn {el, er}, acc -> acc and equal?(el, er) end)
+  end
+
+  def equal?(left, right) when is_tuple(left) do
+    tuple_size(left) == tuple_size(right) and
+      equal?(left |> Tuple.to_list(), right |> Tuple.to_list())
+  end
+
+  # same for map or struct -> recurse to list
+  def equal?(left, right) when is_map(left) do
+    map_size(left) == map_size(right) and equal?(left |> Map.to_list(), right |> Map.to_list())
+  end
+
+  # general case : rely on elixir
   def equal?(left, right) do
-    cond do
-      is_function(left) -> left.("foo") == right.("foo")
-      is_float(left) -> Float.round(left, 5) == Float.round(right, 5)
-      true -> left == right
-    end
+    left == right
   end
 end
