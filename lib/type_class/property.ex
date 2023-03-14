@@ -39,16 +39,9 @@ defmodule TypeClass.Property do
 
   @doc ~S"""
   Check for equality while handling special cases that normally don't equate in Elixir.
-  For example, only check float accuracy to 5 decimal places due to internal rounding
-  mismatches from applying functions in differing order. This isn't totally theoretically
-  accurate, but is in line with the spirit of Floats.
   """
   @spec equal?(any(), any()) :: boolean()
   def equal?(left, right) do
-    cond do
-      is_function(left) -> left.("foo") == right.("foo")
-      is_float(left) -> Float.round(left, 5) == Float.round(right, 5)
-      true -> left == right
-    end
+    TypeClass.Property.Equal.equal?(left, right)
   end
 end
