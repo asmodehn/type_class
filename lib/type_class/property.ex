@@ -49,7 +49,8 @@ defmodule TypeClass.Property do
   end
 
   def equal?(left, right) when is_float(left) do
-    Float.round(left, 5) == Float.round(right, 5)
+    #round right as float if needed, otherwise expect an number and rely on elixir == operator
+    Float.round(left, 5) == if is_float(right), do: Float.round(right, 5), else: right
   end
 
   def equal?(left, right) when is_list(left) do
