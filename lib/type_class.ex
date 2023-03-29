@@ -250,10 +250,74 @@ defmodule TypeClass do
         def __force_type_instance__, do: @force_type_instance
       end
 
+      # cond do
+      #   unquote(class).__force_type_class__() ->
+      #     IO.warn("""
+      #     The type class #{unquote(class)} has been forced to bypass \
+      #     all property checks for all data types. This is very rarely valid, \
+      #     as all type classes should have properties associted with them.
+
+      #     For more, please see the TypeClass README:
+      #     https://github.com/expede/type_class/blob/master/README.md
+      #     """)
+
+      #   instance.__force_type_instance__() ->
+      #     IO.warn("""
+      #     The data type #{unquote(datatype)} has been forced to skip property \
+      #     validation for the type class #{unquote(class)}
+
+      #     This is sometimes valid, since TypeClass's property checker \
+      #     may not be able to accurately validate all data types correctly for \
+      #     all possible cases. Forcing a type instance in this way is like telling \
+      #     the checker "trust me this is correct", and should only be used as \
+      #     a last resort.
+
+      #     For more, please see the TypeClass README:
+      #     https://github.com/expede/type_class/blob/master/README.md
+      #     """)
+
+      #   true ->
+      #     unquote(datatype) |> conforms(to: unquote(class))
+      # end
+    end
+  end
+
+  defmacro classtest(class, opts \\ []) do
+    # __MODULE__ == TypeClass
+    [for: datatype] = opts
+
+    # FROM doctest implementation BEGIN
+    caller = __CALLER__
+
+    require =
+      if is_atom(Macro.expand(class, caller)) do
+        quote do
+          require unquote(class)
+        end
+      end
+
+    tests = 
+      quote bind_quoted: [
+              class: class,
+              # opts: opts,
+              datatype: datatype,
+              env_line: caller.line,
+              env_file: caller.file
+            ] do
+        # file = ExUnit.DocTest.__file__(module)
+
+      instance = Module.concat([class, Proto, datatype])
+
+        # for {name, test, tags} <- ExUnit.DocTest.__doctests__(module, opts) do
+        #   @file file
+        #   doc = ExUnit.Case.register_test(__MODULE__, env_file, env_line, :doctest, name, tags)
+        #   def unquote(doc)(_), do: unquote(test)
+        # end
+
       cond do
-        unquote(class).__force_type_class__() ->
+        class.__force_type_class__() ->
           IO.warn("""
-          The type class #{unquote(class)} has been forced to bypass \
+          The type class #{class} has been forced to bypass \
           all property checks for all data types. This is very rarely valid, \
           as all type classes should have properties associted with them.
 
@@ -263,8 +327,8 @@ defmodule TypeClass do
 
         instance.__force_type_instance__() ->
           IO.warn("""
-          The data type #{unquote(datatype)} has been forced to skip property \
-          validation for the type class #{unquote(class)}
+          The data type #{datatype} has been forced to skip property \
+          validation for the type class #{class}
 
           This is sometimes valid, since TypeClass's property checker \
           may not be able to accurately validate all data types correctly for \
@@ -277,9 +341,15 @@ defmodule TypeClass do
           """)
 
         true ->
-          unquote(datatype) |> conforms(to: unquote(class))
+          datatype |> conforms(to: class)
       end
-    end
+
+    end  
+
+      [require, tests]
+
+    # FROM doctest implementation END
+
   end
 
   @doc ~S"""
@@ -501,8 +571,8 @@ defmodule TypeClass do
   @doc "Check that a datatype conforms to the class hierarchy and properties"
   defmacro conforms(datatype, opts) do
     class = Keyword.get(opts, :to)
-
     quote do
+    
       for dependency <- unquote(class).__dependencies__ do
         proto = Module.concat(Module.split(dependency) ++ ["Proto"])
 
@@ -512,7 +582,9 @@ defmodule TypeClass do
         end
       end
 
-      for {prop_name, _one} <- unquote(class).Property.__info__(:functions) do
+      property = Module.concat([unquote(class), Property])
+
+      for {prop_name, _one} <- property.__info__(:functions) do
         TypeClass.Property.run!(unquote(datatype), unquote(class), prop_name)
       end
     end
