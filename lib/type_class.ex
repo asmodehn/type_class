@@ -250,35 +250,35 @@ defmodule TypeClass do
         def __force_type_instance__, do: @force_type_instance
       end
 
-      # cond do
-      #   unquote(class).__force_type_class__() ->
-      #     IO.warn("""
-      #     The type class #{unquote(class)} has been forced to bypass \
-      #     all property checks for all data types. This is very rarely valid, \
-      #     as all type classes should have properties associted with them.
+      cond do
+        unquote(class).__force_type_class__() ->
+          IO.warn("""
+          The type class #{unquote(class)} has been forced to bypass \
+          all property checks for all data types. This is very rarely valid, \
+          as all type classes should have properties associted with them.
 
-      #     For more, please see the TypeClass README:
-      #     https://github.com/expede/type_class/blob/master/README.md
-      #     """)
+          For more, please see the TypeClass README:
+          https://github.com/expede/type_class/blob/master/README.md
+          """)
 
-      #   instance.__force_type_instance__() ->
-      #     IO.warn("""
-      #     The data type #{unquote(datatype)} has been forced to skip property \
-      #     validation for the type class #{unquote(class)}
+        instance.__force_type_instance__() ->
+          IO.warn("""
+          The data type #{unquote(datatype)} has been forced to skip property \
+          validation for the type class #{unquote(class)}
 
-      #     This is sometimes valid, since TypeClass's property checker \
-      #     may not be able to accurately validate all data types correctly for \
-      #     all possible cases. Forcing a type instance in this way is like telling \
-      #     the checker "trust me this is correct", and should only be used as \
-      #     a last resort.
+          This is sometimes valid, since TypeClass's property checker \
+          may not be able to accurately validate all data types correctly for \
+          all possible cases. Forcing a type instance in this way is like telling \
+          the checker "trust me this is correct", and should only be used as \
+          a last resort.
 
-      #     For more, please see the TypeClass README:
-      #     https://github.com/expede/type_class/blob/master/README.md
-      #     """)
+          For more, please see the TypeClass README:
+          https://github.com/expede/type_class/blob/master/README.md
+          """)
 
-      #   true ->
-      #     unquote(datatype) |> conforms(to: unquote(class))
-      # end
+        true ->
+          unquote(datatype) |> conforms(to: unquote(class))
+      end
     end
   end
 
@@ -286,7 +286,6 @@ defmodule TypeClass do
     # __MODULE__ == TypeClass
     [for: datatype] = opts
 
-    # FROM doctest implementation BEGIN
     caller = __CALLER__
 
     require =
@@ -304,51 +303,19 @@ defmodule TypeClass do
               env_line: caller.line,
               env_file: caller.file
             ] do
-        # file = ExUnit.DocTest.__file__(module)
 
-      instance = Module.concat([class, Proto, datatype])
+      property = Module.concat([class, Property])
+    
+      for {prop_name, one} <- property.__info__(:functions) do
 
-        # for {name, test, tags} <- ExUnit.DocTest.__doctests__(module, opts) do
-        #   @file file
-        #   doc = ExUnit.Case.register_test(__MODULE__, env_file, env_line, :doctest, name, tags)
-        #   def unquote(doc)(_), do: unquote(test)
-        # end
+        t = ExUnit.Case.register_test(__MODULE__, env_file, env_line, :classtest, prop_name, [])
+        def unquote(t)(_), do: TypeClass.Property.run!(unquote(datatype), unquote(class), unquote(prop_name))
 
-      cond do
-        class.__force_type_class__() ->
-          IO.warn("""
-          The type class #{class} has been forced to bypass \
-          all property checks for all data types. This is very rarely valid, \
-          as all type classes should have properties associted with them.
-
-          For more, please see the TypeClass README:
-          https://github.com/expede/type_class/blob/master/README.md
-          """)
-
-        instance.__force_type_instance__() ->
-          IO.warn("""
-          The data type #{datatype} has been forced to skip property \
-          validation for the type class #{class}
-
-          This is sometimes valid, since TypeClass's property checker \
-          may not be able to accurately validate all data types correctly for \
-          all possible cases. Forcing a type instance in this way is like telling \
-          the checker "trust me this is correct", and should only be used as \
-          a last resort.
-
-          For more, please see the TypeClass README:
-          https://github.com/expede/type_class/blob/master/README.md
-          """)
-
-        true ->
-          datatype |> conforms(to: class)
       end
 
-    end  
+    end
 
       [require, tests]
-
-    # FROM doctest implementation END
 
   end
 
@@ -582,11 +549,7 @@ defmodule TypeClass do
         end
       end
 
-      property = Module.concat([unquote(class), Property])
-
-      for {prop_name, _one} <- property.__info__(:functions) do
-        TypeClass.Property.run!(unquote(datatype), unquote(class), prop_name)
-      end
+      # check_properties(unquote(class), unquote(datatype))
     end
   end
 
@@ -594,4 +557,15 @@ defmodule TypeClass do
   defmacro conforms(opts) do
     quote do: conforms(__MODULE__, unquote(opts))
   end
+
+
+  def check_properties(class, datatype ) do
+
+      property = Module.concat([class, Property])
+    
+      for {prop_name, _one} <- property.__info__(:functions) do
+        TypeClass.Property.run!(datatype, class, prop_name)
+      end
+  end
+
 end
