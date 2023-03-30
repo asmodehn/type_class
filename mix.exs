@@ -12,6 +12,10 @@ defmodule TypeClass.Mixfile do
       version: "1.2.8",
       elixir: "~> 1.11",
 
+      # options
+      elixirc_paths: elixirc_paths(Mix.env()),
+      elixirc_options: [warnings_as_errors: true],
+
       # Docs
       name: "TypeClass",
       docs: docs(),
@@ -21,6 +25,12 @@ defmodule TypeClass.Mixfile do
       package: package()
     ]
   end
+
+  # Specifies which paths to compile per environment.
+  # to be able to interactively use test/support
+  defp elixirc_paths(:dev), do: ["lib", "test/support"]
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   defp aliases do
     [

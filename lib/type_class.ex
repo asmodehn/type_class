@@ -282,6 +282,43 @@ defmodule TypeClass do
     end
   end
 
+  defmacro classtest(class, opts \\ []) do
+    # __MODULE__ == TypeClass
+    [for: datatype] = opts
+
+    caller = __CALLER__
+
+    require =
+      if is_atom(Macro.expand(class, caller)) do
+        quote do
+          require unquote(class)
+        end
+      end
+
+    tests = 
+      quote bind_quoted: [
+              class: class,
+              # opts: opts,
+              datatype: datatype,
+              env_line: caller.line,
+              env_file: caller.file
+            ] do
+
+      property = Module.concat([class, Property])
+    
+      for {prop_name, one} <- property.__info__(:functions) do
+
+        t = ExUnit.Case.register_test(__MODULE__, env_file, env_line, :classtest, prop_name, [])
+        def unquote(t)(_), do: TypeClass.Property.run!(unquote(datatype), unquote(class), unquote(prop_name))
+
+      end
+
+    end
+
+      [require, tests]
+
+  end
+
   @doc ~S"""
   Convenience alises for `definst/3`
 
@@ -501,8 +538,8 @@ defmodule TypeClass do
   @doc "Check that a datatype conforms to the class hierarchy and properties"
   defmacro conforms(datatype, opts) do
     class = Keyword.get(opts, :to)
-
     quote do
+    
       for dependency <- unquote(class).__dependencies__ do
         proto = Module.concat(Module.split(dependency) ++ ["Proto"])
 
@@ -512,9 +549,7 @@ defmodule TypeClass do
         end
       end
 
-      for {prop_name, _one} <- unquote(class).Property.__info__(:functions) do
-        TypeClass.Property.run!(unquote(datatype), unquote(class), prop_name)
-      end
+      # check_properties(unquote(class), unquote(datatype))
     end
   end
 
@@ -522,4 +557,15 @@ defmodule TypeClass do
   defmacro conforms(opts) do
     quote do: conforms(__MODULE__, unquote(opts))
   end
+
+
+  def check_properties(class, datatype ) do
+
+      property = Module.concat([class, Property])
+    
+      for {prop_name, _one} <- property.__info__(:functions) do
+        TypeClass.Property.run!(datatype, class, prop_name)
+      end
+  end
+
 end
