@@ -448,6 +448,11 @@ defmodule TypeClass do
     delegates =
       fun_stubs
       |> List.wrap()
+      |> Enum.filter(fn 
+        # remove fallback_to_any in module to allow using it in Proto.
+        {:@, _ctx, [{:fallback_to_any, _, _}]} -> false
+        _ -> true
+      end)
       |> Enum.map(fn
         {:def, ctx, fun} ->
           {
